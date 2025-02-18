@@ -25,7 +25,7 @@ import Maintenance from "./Maintance";
 import { getUser } from "../backend/auth";
 
 const Dashboard = () => {
-  const [user, setUser] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [activeMenuItem, setActiveMenuItem] = useState("dashboard");
@@ -34,10 +34,11 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchUser = async () => {
       const fetchedUser = await getUser();
+      console.log(fetchedUser);
       if (fetchedUser === null) {
         window.location.href = "/login";
       } else {
-        setUser(fetchedUser);
+        setIsAdmin(fetchedUser.data.user.role === "Admin");
         setIsAuthenticated(true);
       }
     };
@@ -74,15 +75,32 @@ const Dashboard = () => {
       id: "dashboard",
       label: "Dashboard",
       icon: <LayoutDashboardIcon size={20} />,
+      adminOnly: false,
     },
-    { id: "books", label: "Book Management", icon: <BookIcon size={20} /> },
-    { id: "members", label: "Membership", icon: <UsersIcon size={20} /> },
+    {
+      id: "books",
+      label: "Book Management",
+      icon: <BookIcon size={20} />,
+      adminOnly: true,
+    },
+    {
+      id: "members",
+      label: "Membership",
+      icon: <UsersIcon size={20} />,
+      adminOnly: true,
+    },
     {
       id: "transactions",
       label: "Transactions",
       icon: <RepeatIcon size={20} />,
+      adminOnly: false,
     },
-    { id: "reports", label: "Reports", icon: <BarChart3Icon size={20} /> },
+    {
+      id: "reports",
+      label: "Reports",
+      icon: <BarChart3Icon size={20} />,
+      adminOnly: false,
+    },
     {
       id: "users",
       label: "User Management",
@@ -146,19 +164,23 @@ const Dashboard = () => {
         {/* Sidebar Menu */}
         <div className="flex-1 overflow-y-auto py-4">
           <ul className="space-y-2 px-2">
-            {menuItems.map((item) => (
-              <li key={item.id}>
-                <button
-                  onClick={() => handleMenuItemClick(item.id)}
-                  className={`flex items-center w-full p-2 rounded-md hover:bg-blue-700 ${
-                    activeMenuItem === item.id ? "bg-blue-600" : ""
-                  } ${isSidebarOpen ? "justify-start" : "justify-center"}`}
-                >
-                  <span className="flex-shrink-0">{item.icon}</span>
-                  {isSidebarOpen && <span className="ml-3">{item.label}</span>}
-                </button>
-              </li>
-            ))}
+            {menuItems
+              .filter((item) => !item.adminOnly || isAdmin)
+              .map((item) => (
+                <li key={item.id}>
+                  <button
+                    onClick={() => handleMenuItemClick(item.id)}
+                    className={`flex items-center w-full p-2 rounded-md hover:bg-blue-700 ${
+                      activeMenuItem === item.id ? "bg-blue-600" : ""
+                    } ${isSidebarOpen ? "justify-start" : "justify-center"}`}
+                  >
+                    <span className="flex-shrink-0">{item.icon}</span>
+                    {isSidebarOpen && (
+                      <span className="ml-3">{item.label}</span>
+                    )}
+                  </button>
+                </li>
+              ))}
           </ul>
         </div>
 
