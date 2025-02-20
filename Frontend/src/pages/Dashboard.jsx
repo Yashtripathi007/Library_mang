@@ -22,7 +22,7 @@ import BookManagement from "./Book";
 import UserManagement from "./Users";
 import MembershipManagement from "./Membership";
 import Maintenance from "./Maintance";
-import { getUser } from "../backend/auth";
+import { getUser, logoutUser } from "../backend/auth";
 
 const Dashboard = () => {
   const [isAdmin, setIsAdmin] = useState(null);
@@ -58,8 +58,13 @@ const Dashboard = () => {
     setActiveMenuItem(menuItem);
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      setIsAuthenticated(false);
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   const handleLogin = () => {
@@ -186,15 +191,19 @@ const Dashboard = () => {
 
         {/* Sidebar Footer */}
         <div className="p-4 border-t border-blue-700">
-          <button
-            onClick={handleLogout}
-            className={`flex items-center w-full p-2 rounded-md hover:bg-blue-700 ${
-              isSidebarOpen ? "justify-start" : "justify-center"
-            }`}
-          >
-            <LogOutIcon size={20} />
-            {isSidebarOpen && <span className="ml-3">Logout</span>}
-          </button>
+          {isAuthenticated ? (
+            <button
+              onClick={handleLogout}
+              className={`flex items-center w-full p-2 rounded-md hover:bg-blue-700 ${
+                isSidebarOpen ? "justify-start" : "justify-center"
+              }`}
+            >
+              <LogOutIcon size={20} />
+              {isSidebarOpen && <span className="ml-3">Logout</span>}
+            </button>
+          ) : (
+            <></>
+          )}
         </div>
       </div>
 
