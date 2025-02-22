@@ -1,73 +1,75 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
-import bcrypt from "bcryptjs";
-import User from "./src/models/User.js";
+import Book from "./src/models/Book.js";
 
+// Load environment variables
 dotenv.config({
   path: "./src/config/.env",
 });
 
 // Connect to MongoDB
-const connectDB = async () => {
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  dbName: "Library_management",
+  useUnifiedTopology: true,
+});
+
+const books = [
+  {
+    title: "The Great Gatsby",
+    author: "F. Scott Fitzgerald",
+    category: "Fiction",
+    isbn: "978-0743273565",
+    status: "Available",
+  },
+  {
+    title: "1984",
+    author: "George Orwell",
+    category: "Dystopian",
+    isbn: "978-0451524935",
+    status: "Available",
+  },
+  {
+    title: "To Kill a Mockingbird",
+    author: "Harper Lee",
+    category: "Classic",
+    isbn: "978-0061120084",
+    status: "Available",
+  },
+  {
+    title: "Sapiens: A Brief History of Humankind",
+    author: "Yuval Noah Harari",
+    category: "History",
+    isbn: "978-0062316097",
+    status: "Available",
+  },
+  {
+    title: "The Catcher in the Rye",
+    author: "J.D. Salinger",
+    category: "Classic",
+    isbn: "978-0316769488",
+    status: "Available",
+  },
+  {
+    title: "The Alchemist",
+    author: "Paulo Coelho",
+    category: "Philosophy",
+    isbn: "978-0061122415",
+    status: "Available",
+  },
+];
+
+const seedBooks = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URI, {
-      dbName: "Library_management",
-    });
-    console.log("✅ MongoDB Connected...");
+    await Book.deleteMany(); // Clears existing books
+    await Book.insertMany(books);
+    console.log("✅ Books seeded successfully!");
+    mongoose.connection.close();
   } catch (error) {
-    console.error("❌ MongoDB Connection Failed:", error);
-    process.exit(1);
-  }
-};
-
-// Seed Users
-const seedUsers = async () => {
-  try {
-    await connectDB();
-
-    // Remove all users (optional)
-    await User.deleteMany({});
-    console.log("⚠️ Existing Users Removed!");
-
-    // Hash passwords
-    const adminPassword = await bcrypt.hash("adminpassword", 10);
-    const userPassword = await bcrypt.hash("userpassword", 10);
-
-    // Define users
-    const users = [
-      {
-        name: "Admin User",
-        username: "adminuser",
-        email: "admin@example.com",
-        password: adminPassword,
-        role: "Admin",
-      },
-      {
-        name: "User One",
-        username: "userone",
-        email: "userone@example.com",
-        password: userPassword,
-        role: "User",
-      },
-      {
-        name: "User Two",
-        username: "usertwo",
-        email: "usertwo@example.com",
-        password: userPassword,
-        role: "User",
-      },
-    ];
-
-    // Insert users into database
-    await User.insertMany(users);
-    console.log("✅ Admin & Users Created!");
-
-    mongoose.connection.close(); // Close the database connection
-  } catch (error) {
-    console.error("❌ Error Seeding Users:", error);
-    process.exit(1);
+    console.error("❌ Error seeding books:", error);
+    mongoose.connection.close();
   }
 };
 
 // Run the seed function
-seedUsers();
+seedBooks();

@@ -39,6 +39,11 @@ app.use((req, res, next) => {
 });
 
 import authRoutes from "./routes/authRoute.js";
+import userRoutes from "./routes/userRoutes.js";
+import bookRoutes from "./routes/bookRoutes.js";
+
 app.use("/api/auth", authRoutes);
+app.use("/api/user", userRoutes);
+app.use("/api/book", bookRoutes);
 
 export default app;

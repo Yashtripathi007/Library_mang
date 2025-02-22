@@ -1,51 +1,132 @@
-import { useState } from "react";
-import { UserIcon, EditIcon, TrashIcon, PlusIcon, SearchIcon } from "lucide-react";
+import { useState, useEffect } from "react";
+import {
+  UserIcon,
+  EditIcon,
+  TrashIcon,
+  PlusIcon,
+  SearchIcon,
+  EyeIcon,
+  EyeOffIcon,
+  AlertCircleIcon,
+} from "lucide-react";
+import { registerUser } from "../backend/auth";
+import { getAllUsers } from "../backend/user";
 
 const UserManagement = () => {
-  const [users, setUsers] = useState([
-    { id: 1, name: "Admin", username: "admin", role: "Admin", email: "admin@example.com" },
-    { id: 2, name: "John Doe", username: "johndoe", role: "User", email: "johndoe@example.com" },
-  ]);
+  const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
   const [formData, setFormData] = useState({
     id: null,
     name: "",
     username: "",
     email: "",
+    password: "",
     role: "User",
   });
 
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        let allUsers = await getAllUsers();
+        setUsers(
+          allUsers.data.map((user, idx) => ({
+            id: idx + 1,
+            name: user.name,
+            username: user.username,
+            email: user.email,
+            role: user.role,
+          }))
+        );
+      } catch (error) {
+        setError(error);
+      }
+    };
+
+    fetchUsers();
+  }, []);
+
   const openModal = (user = null) => {
-    setFormData(user || { id: null, name: "", username: "", email: "", role: "User" });
+    setError("");
+    setShowPassword(false);
+    setFormData(
+      user || {
+        id: null,
+        name: "",
+        username: "",
+        email: "",
+        password: "",
+        role: "User",
+      }
+    );
     setIsModalOpen(true);
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
+    setError("");
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setError("");
   };
 
-  const handleSubmit = (e) => {
+  const validateForm = () => {
+    if (!formData.name.trim()) {
+      setError("Name is required");
+      return false;
+    }
+    if (!formData.username.trim()) {
+      setError("Username is required");
+      return false;
+    }
+    if (!formData.email.trim()) {
+      setError("Email is required");
+      return false;
+    }
+    if (!formData.id && !formData.password.trim()) {
+      setError("Password is required for new users");
+      return false;
+    }
+    if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
+      setError("Please enter a valid email address");
+      return false;
+    }
+    return true;
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.username || !formData.email) {
-      alert("All fields are required!");
+
+    if (!validateForm()) {
       return;
     }
 
-    if (formData.id) {
-      // Update User
-      setUsers((prev) => prev.map((u) => (u.id === formData.id ? formData : u)));
-    } else {
-      // Add New User
-      setUsers((prev) => [...prev, { ...formData, id: prev.length + 1 }]);
-    }
+    try {
+      if (formData.id) {
+        setUsers((prev) =>
+          prev.map((u) => (u.id === formData.id ? formData : u))
+        );
+      } else {
+        setUsers((prev) => [...prev, { ...formData, id: prev.length + 1 }]);
+      }
 
-    closeModal();
+      await registerUser(
+        formData.name,
+        formData.username,
+        formData.email,
+        formData.password,
+        formData.role
+      );
+
+      closeModal();
+    } catch (error) {
+      setError(error);
+    }
   };
 
   const handleDelete = (id) => {
@@ -96,14 +177,26 @@ const UserManagement = () => {
           </thead>
           <tbody>
             {users
-              .filter((u) => u.name.toLowerCase().includes(searchTerm.toLowerCase()))
+              .filter((u) =>
+                u.name.toLowerCase().includes(searchTerm.toLowerCase())
+              )
               .map((user) => (
                 <tr key={user.id} className="text-center">
-                  <td className="border border-gray-300 px-4 py-2">{user.id}</td>
-                  <td className="border border-gray-300 px-4 py-2">{user.name}</td>
-                  <td className="border border-gray-300 px-4 py-2">{user.username}</td>
-                  <td className="border border-gray-300 px-4 py-2">{user.email}</td>
-                  <td className="border border-gray-300 px-4 py-2">{user.role}</td>
+                  <td className="border border-gray-300 px-4 py-2">
+                    {user.id}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2">
+                    {user.name}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2">
+                    {user.username}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2">
+                    {user.email}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2">
+                    {user.role}
+                  </td>
                   <td className="border border-gray-300 px-4 py-2 flex justify-center space-x-2">
                     <button
                       onClick={() => openModal(user)}
@@ -131,62 +224,109 @@ const UserManagement = () => {
             <h3 className="text-lg font-bold mb-4">
               {formData.id ? "Edit User" : "Add New User"}
             </h3>
+
+            {error && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded flex items-center mb-4">
+                <AlertCircleIcon className="h-5 w-5 mr-2" />
+                <span>{error}</span>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit}>
               <div className="mb-4">
-                <label className="block text-gray-700 font-bold mb-2">Name *</label>
+                <label className="block text-gray-700 font-bold mb-2">
+                  Name *
+                </label>
                 <input
                   type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
                   className="border border-gray-300 rounded w-full py-2 px-3"
-                  required
                 />
               </div>
 
               <div className="mb-4">
-                <label className="block text-gray-700 font-bold mb-2">Username *</label>
+                <label className="block text-gray-700 font-bold mb-2">
+                  Username *
+                </label>
                 <input
                   type="text"
                   name="username"
                   value={formData.username}
                   onChange={handleChange}
                   className="border border-gray-300 rounded w-full py-2 px-3"
-                  required
                 />
               </div>
 
               <div className="mb-4">
-                <label className="block text-gray-700 font-bold mb-2">Email *</label>
+                <label className="block text-gray-700 font-bold mb-2">
+                  Email *
+                </label>
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
                   className="border border-gray-300 rounded w-full py-2 px-3"
-                  required
                 />
               </div>
 
               <div className="mb-4">
-                <label className="block text-gray-700 font-bold mb-2">Role *</label>
+                <label className="block text-gray-700 font-bold mb-2">
+                  Role *
+                </label>
                 <select
                   name="role"
                   value={formData.role}
                   onChange={handleChange}
                   className="border border-gray-300 rounded w-full py-2 px-3"
-                  required
                 >
                   <option value="User">User</option>
                   <option value="Admin">Admin</option>
                 </select>
               </div>
 
+              <div className="mb-4">
+                <label className="block text-gray-700 font-bold mb-2">
+                  {formData.id
+                    ? "Password (leave blank to keep unchanged)"
+                    : "Password *"}
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    className="border border-gray-300 rounded w-full py-2 px-3 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  >
+                    {showPassword ? (
+                      <EyeOffIcon className="h-5 w-5 text-gray-400" />
+                    ) : (
+                      <EyeIcon className="h-5 w-5 text-gray-400" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
               <div className="flex justify-end space-x-4">
-                <button type="button" onClick={closeModal} className="bg-gray-400 px-4 py-2 rounded-md">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="bg-gray-400 text-white px-4 py-2 rounded-md"
+                >
                   Cancel
                 </button>
-                <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-md">
+                <button
+                  type="submit"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md"
+                >
                   Save
                 </button>
               </div>

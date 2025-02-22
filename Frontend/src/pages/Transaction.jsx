@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { BookIcon, CalendarIcon, CheckCircleIcon, AlertCircleIcon } from "lucide-react";
+import { issueBook } from "../backend/book"; // Import API function
+import {
+  BookIcon,
+  CalendarIcon,
+  CheckCircleIcon,
+  AlertCircleIcon,
+} from "lucide-react";
 
 const Transactions = () => {
   const [activeTab, setActiveTab] = useState("issue");
@@ -16,20 +22,49 @@ const Transactions = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+
+    if (name === "issueDate") {
+      const issueDate = new Date(value);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Reset time for accurate comparison
+
+      if (issueDate < today) {
+        setError("Issue Date cannot be in the past.");
+        return;
+      }
+
+      // Auto-set the return date (default: issueDate + 15 days)
+      const maxReturnDate = new Date(issueDate);
+      maxReturnDate.setDate(issueDate.getDate() + 15);
+
+      setFormData((prev) => ({
+        ...prev,
+        issueDate: value,
+        returnDate: maxReturnDate.toISOString().split("T")[0], // Default return date
+      }));
+    } else if (name === "returnDate") {
+      const returnDate = new Date(value);
+      const issueDate = new Date(formData.issueDate);
+      const maxReturnDate = new Date(issueDate);
+      maxReturnDate.setDate(issueDate.getDate() + 15);
+
+      if (returnDate < issueDate || returnDate > maxReturnDate) {
+        setError("Return Date must be within 15 days of the Issue Date.");
+        return;
+      }
+    }
+
     setFormData((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
+    setError(""); // Clear errors on valid input
   };
 
   const validateForm = () => {
     if (activeTab === "issue") {
       if (!formData.bookTitle || !formData.issueDate || !formData.returnDate) {
         setError("Please fill in all required fields.");
-        return false;
-      }
-      if (new Date(formData.issueDate) < new Date()) {
-        setError("Issue Date cannot be in the past.");
         return false;
       }
     } else if (activeTab === "return") {
@@ -41,15 +76,31 @@ const Transactions = () => {
       setError("Fine must be marked as paid before proceeding.");
       return false;
     }
+
     setError("");
     return true;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
-    setSuccess("Transaction completed successfully.");
-    setTimeout(() => setSuccess(""), 3000);
+
+    if (activeTab === "issue") {
+      try {
+        const response = await issueBook(
+          formData.bookTitle,
+          formData.issueDate,
+          formData.returnDate
+        );
+        setSuccess(response.message);
+        setTimeout(() => setSuccess(""), 3000);
+      } catch (error) {
+        setError(error.message);
+      }
+    } else {
+      setSuccess("Transaction completed successfully.");
+      setTimeout(() => setSuccess(""), 3000);
+    }
   };
 
   return (
@@ -104,7 +155,9 @@ const Transactions = () => {
       <form onSubmit={handleSubmit} className="bg-white shadow p-6 rounded-lg">
         {activeTab !== "fine" && (
           <div className="mb-4">
-            <label className="block text-gray-700 font-bold mb-2">Book Title *</label>
+            <label className="block text-gray-700 font-bold mb-2">
+              Book Title *
+            </label>
             <input
               type="text"
               name="bookTitle"
@@ -120,64 +173,56 @@ const Transactions = () => {
         {activeTab === "issue" && (
           <>
             <div className="mb-4">
-              <label className="block text-gray-700 font-bold mb-2">Issue Date *</label>
+              <label className="block text-gray-700 font-bold mb-2">
+                Issue Date *
+              </label>
               <input
                 type="date"
                 name="issueDate"
                 value={formData.issueDate}
                 onChange={handleChange}
                 className="border border-gray-300 rounded w-full py-2 px-3"
+                min={new Date().toISOString().split("T")[0]} // Restrict past dates
                 required
               />
             </div>
             <div className="mb-4">
-              <label className="block text-gray-700 font-bold mb-2">Return Date *</label>
+              <label className="block text-gray-700 font-bold mb-2">
+                Return Date *
+              </label>
               <input
                 type="date"
                 name="returnDate"
                 value={formData.returnDate}
                 onChange={handleChange}
                 className="border border-gray-300 rounded w-full py-2 px-3"
-                required
+                min={
+                  formData.issueDate || new Date().toISOString().split("T")[0]
+                } // Ensure issueDate is valid
+                max={
+                  formData.issueDate
+                    ? new Date(
+                        new Date(formData.issueDate).getTime() +
+                          15 * 24 * 60 * 60 * 1000
+                      )
+                        .toISOString()
+                        .split("T")[0]
+                    : ""
+                }
               />
             </div>
           </>
-        )}
-
-        {activeTab === "return" && (
-          <>
-            <div className="mb-4">
-              <label className="block text-gray-700 font-bold mb-2">Serial Number *</label>
-              <input
-                type="text"
-                name="serialNo"
-                value={formData.serialNo}
-                onChange={handleChange}
-                className="border border-gray-300 rounded w-full py-2 px-3"
-                required
-              />
-            </div>
-          </>
-        )}
-
-        {activeTab === "fine" && (
-          <div className="mb-4 flex items-center">
-            <input
-              type="checkbox"
-              name="finePaid"
-              checked={formData.finePaid}
-              onChange={handleChange}
-              className="h-5 w-5 mr-2"
-            />
-            <label className="text-gray-700 font-bold">Fine Paid</label>
-          </div>
         )}
 
         <button
           type="submit"
           className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition w-full"
         >
-          {activeTab === "issue" ? "Issue Book" : activeTab === "return" ? "Return Book" : "Pay Fine"}
+          {activeTab === "issue"
+            ? "Issue Book"
+            : activeTab === "return"
+            ? "Return Book"
+            : "Pay Fine"}
         </button>
       </form>
     </div>

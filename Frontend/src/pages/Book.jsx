@@ -1,11 +1,15 @@
-import { useState } from "react";
-import { BookIcon, EditIcon, TrashIcon, PlusIcon, SearchIcon } from "lucide-react";
+import { useState, useEffect } from "react";
+import {
+  BookIcon,
+  EditIcon,
+  TrashIcon,
+  PlusIcon,
+  SearchIcon,
+} from "lucide-react";
+import { addBook, getAllBooks } from "../backend/book";
 
 const BookManagement = () => {
-  const [books, setBooks] = useState([
-    { id: 1, title: "1984", author: "George Orwell", category: "Fiction", isbn: "9780451524935" },
-    { id: 2, title: "To Kill a Mockingbird", author: "Harper Lee", category: "Classic", isbn: "9780060935467" },
-  ]);
+  const [books, setBooks] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -16,8 +20,32 @@ const BookManagement = () => {
     isbn: "",
   });
 
+  useEffect(() => {
+    const fetchAllBooks = async () => {
+      try {
+        const books = await getAllBooks();
+        setBooks(
+          books.map((book, idx) => ({
+            id: idx + 1,
+            title: book.title,
+            author: book.author,
+            category: book.category,
+            isbn: book.isbn,
+            status: book.status,
+          }))
+        );
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    fetchAllBooks();
+  });
+
   const openModal = (book = null) => {
-    setFormData(book || { id: null, title: "", author: "", category: "", isbn: "" });
+    setFormData(
+      book || { id: null, title: "", author: "", category: "", isbn: "" }
+    );
     setIsModalOpen(true);
   };
 
@@ -30,21 +58,37 @@ const BookManagement = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.title || !formData.author || !formData.category || !formData.isbn) {
+    if (
+      !formData.title ||
+      !formData.author ||
+      !formData.category ||
+      !formData.isbn
+    ) {
       alert("All fields are required!");
       return;
     }
 
     if (formData.id) {
       // Update Book
-      setBooks((prev) => prev.map((b) => (b.id === formData.id ? formData : b)));
+      setBooks((prev) =>
+        prev.map((b) => (b.id === formData.id ? formData : b))
+      );
     } else {
       // Add New Book
       setBooks((prev) => [...prev, { ...formData, id: prev.length + 1 }]);
     }
-
+    try {
+      await addBook(
+        formData.title,
+        formData.author,
+        formData.category,
+        formData.isbn
+      );
+    } catch (error) {
+      console.error(error);
+    }
     closeModal();
   };
 
@@ -96,14 +140,26 @@ const BookManagement = () => {
           </thead>
           <tbody>
             {books
-              .filter((b) => b.title.toLowerCase().includes(searchTerm.toLowerCase()))
+              .filter((b) =>
+                b.title.toLowerCase().includes(searchTerm.toLowerCase())
+              )
               .map((book) => (
                 <tr key={book.id} className="text-center">
-                  <td className="border border-gray-300 px-4 py-2">{book.id}</td>
-                  <td className="border border-gray-300 px-4 py-2">{book.title}</td>
-                  <td className="border border-gray-300 px-4 py-2">{book.author}</td>
-                  <td className="border border-gray-300 px-4 py-2">{book.category}</td>
-                  <td className="border border-gray-300 px-4 py-2">{book.isbn}</td>
+                  <td className="border border-gray-300 px-4 py-2">
+                    {book.id}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2">
+                    {book.title}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2">
+                    {book.author}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2">
+                    {book.category}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2">
+                    {book.isbn}
+                  </td>
                   <td className="border border-gray-300 px-4 py-2 flex justify-center space-x-2">
                     <button
                       onClick={() => openModal(book)}
@@ -133,7 +189,9 @@ const BookManagement = () => {
             </h3>
             <form onSubmit={handleSubmit}>
               <div className="mb-4">
-                <label className="block text-gray-700 font-bold mb-2">Title *</label>
+                <label className="block text-gray-700 font-bold mb-2">
+                  Title *
+                </label>
                 <input
                   type="text"
                   name="title"
@@ -145,7 +203,9 @@ const BookManagement = () => {
               </div>
 
               <div className="mb-4">
-                <label className="block text-gray-700 font-bold mb-2">Author *</label>
+                <label className="block text-gray-700 font-bold mb-2">
+                  Author *
+                </label>
                 <input
                   type="text"
                   name="author"
@@ -157,7 +217,9 @@ const BookManagement = () => {
               </div>
 
               <div className="mb-4">
-                <label className="block text-gray-700 font-bold mb-2">Category *</label>
+                <label className="block text-gray-700 font-bold mb-2">
+                  Category *
+                </label>
                 <input
                   type="text"
                   name="category"
@@ -169,7 +231,9 @@ const BookManagement = () => {
               </div>
 
               <div className="mb-4">
-                <label className="block text-gray-700 font-bold mb-2">ISBN *</label>
+                <label className="block text-gray-700 font-bold mb-2">
+                  ISBN *
+                </label>
                 <input
                   type="text"
                   name="isbn"
@@ -181,10 +245,17 @@ const BookManagement = () => {
               </div>
 
               <div className="flex justify-end space-x-4">
-                <button type="button" onClick={closeModal} className="bg-gray-400 px-4 py-2 rounded-md">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="bg-gray-400 px-4 py-2 rounded-md"
+                >
                   Cancel
                 </button>
-                <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-md">
+                <button
+                  type="submit"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md"
+                >
                   Save
                 </button>
               </div>

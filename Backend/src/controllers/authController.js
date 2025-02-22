@@ -10,14 +10,14 @@ const generateToken = (user) => {
 
 // Signup Controller
 export const registerUser = async (req, res) => {
-  const { name, username, email, password } = req.body;
+  const { name, username, email, password, role } = req.body;
 
   try {
     let userExists = await User.findOne({ email });
     if (userExists)
       return res.status(400).json({ message: "User already exists" });
 
-    const user = await User.create({ name, username, email, password });
+    const user = await User.create({ name, username, email, password, role });
 
     const token = generateToken(user);
     res.cookie("token", token, { httpOnly: true });
